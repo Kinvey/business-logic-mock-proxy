@@ -15,12 +15,16 @@
   "scripts"    : {
     "start"   : "node .",
     "pretest" : "coffeelint -f .coffeelint config lib test",
-    "test"    : "mocha test/",
-    "test-collectionAccess" : "mocha test/lib/collection-access.test.coffee test/lib/collection-access-commands/*",
-    "test-configuration"    : "mocha test/lib/configuration-management.test.coffee",
-    "test-email"            : "mocha test/lib/email.test.coffee",
-    "test-logging"          : "mocha test/lib/logging.test.coffee",
-    "test-push"             : "mocha test/lib/push.test.coffee"
+    "lint": "npm run pretest",
+    "test": "npm run test-unit && npm run test-integration",
+    "test-unit": "mocha test/unit/*/*",
+    "test-integration": "echo \"No integration tests available for the moment\"",
+    "test-collectionAccess" : "mocha test/unit/lib/collection-access.test.coffee test/lib/collection-access-commands/*",
+    "test-configuration"    : "mocha test/unit/lib/configuration-management.test.coffee",
+    "test-email"            : "mocha test/unit/lib/email.test.coffee",
+    "test-logging"          : "mocha test/unit/lib/logging.test.coffee",
+    "test-push"             : "mocha test/unit/lib/push.test.coffee",
+    "test-npm-security": "npm audit"
   },
   "dependencies": {
     "async": "1.4.2",
