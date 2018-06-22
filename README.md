@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/Kinvey/business-logic-mock-proxy.svg?branch=master)](https://travis-ci.org/Kinvey/business-logic-mock-proxy)
+
 # Business Logic Mock Proxy
 
 A mock proxy server to simulate requests from the business logic API to internal Kinvey services (collection access, email, logging, push notifications). Intended for use as a drop-in replacement for the [business-logic-proxy](http://github.com/Kinvey/business-logic-proxy) server.
