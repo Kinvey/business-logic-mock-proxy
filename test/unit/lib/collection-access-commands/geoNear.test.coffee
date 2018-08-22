@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Kinvey, Inc.
+# Copyright 2018 Kinvey, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ config = require 'config'
 should = require 'should'
 request = require 'request'
 BSON = require('bson').BSONPure.BSON
-testUtils = require '../../testUtils'
+testUtils = require '../../../testUtils'
 
 req = request.defaults {}
 

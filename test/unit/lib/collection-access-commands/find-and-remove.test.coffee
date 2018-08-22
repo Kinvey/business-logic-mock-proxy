@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Kinvey, Inc.
+# Copyright 2018 Kinvey, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,14 +18,20 @@ config = require 'config'
 should = require 'should'
 request = require 'request'
 BSON = require('bson').BSONPure.BSON
-testUtils = require '../../testUtils'
+testUtils = require '../../../testUtils'
 
 req = request.defaults {}
 
 baseUrl = "http://#{config.server.address}:#{config.server.port}"
 collectionName = "testCollection"
 
-describe 'collectionAccess / count', () ->
+describe 'collectionAccess / findAndRemove', () ->
+  entities = [{ propOne: 1, propTwo: 2, unique: 0 }
+              { propOne: 1, propTwo: 2, unique: 1 }
+              { propOne: 3, propTwo: 1, unique: 2 }
+              { propOne: 2, propTwo: 1, unique: 3 }
+              { propOne: 2, propTwo: 3, unique: 4 }]
+
   before (done) ->
     testUtils.startServer baseUrl, (forkedProcess) ->
       done()
@@ -38,11 +44,7 @@ describe 'collectionAccess / count', () ->
     req.post
       url: "#{baseUrl}/collectionAccess/#{collectionName}/insert"
       json:
-        entity: [{ propOne: 1, propTwo: 2, unique: 0 }
-                 { propOne: 1, propTwo: 2, unique: 1 }
-                 { propOne: 2, propTwo: 1, unique: 2 }
-                 { propOne: 2, propTwo: 1, unique: 3 }
-                 { propOne: 2, propTwo: 3, unique: 4 }]
+        entity: entities
       (err, res, body) ->
         done()
 
@@ -54,124 +56,120 @@ describe 'collectionAccess / count', () ->
       (err, res, body) ->
         done err
 
-  it 'correctly performs a count with an empty query', (done) ->
+  it 'correctly performs a findAndRemove with an empty query', (done) ->
     req.post
-      url: "#{baseUrl}/collectionAccess/#{collectionName}/count"
+      url: "#{baseUrl}/collectionAccess/#{collectionName}/findAndRemove"
       json:
         query: {}
       (err, res, body) ->
         return done err if err
         res.statusCode.should.eql 200
-        body.should.have.property 'count'
-        body.count.should.eql 5
-        done()
+        body.unique.should.eql entities[0].unique
+        req.post
+          url: "#{baseUrl}/collectionAccess/#{collectionName}/count"
+          json:
+            query: {}
+          (err, res, body) ->
+            return done err if err
+            body.count.should.eql 4
+            done()
 
-  it 'correctly performs a count with a non-empty query', (done) ->
+  it 'correctly performs a findAndRemove with a non-empty query', (done) ->
     req.post
-      url: "#{baseUrl}/collectionAccess/#{collectionName}/count"
+      url: "#{baseUrl}/collectionAccess/#{collectionName}/findAndRemove"
       json:
         query:
           propOne: 1
       (err, res, body) ->
         return done err if err
         res.statusCode.should.eql 200
-        body.should.have.property 'count'
-        body.count.should.eql 2
-        done()
-
-  it 'correctly performs a count with a compound query', (done) ->
-    req.post
-      url: "#{baseUrl}/collectionAccess/#{collectionName}/count"
-      json:
-        query:
-          $and: [{ propOne: 2 }
-                 { propTwo: 3 }]
-      (err, res, body) ->
-        return done err if err
-        res.statusCode.should.eql 200
-        body.should.have.property 'count'
-        body.count.should.eql 1
-        done()
-
-  it 'correctly performs a count by a single Mongo ObjectID', (done) ->
-    req.post
-      url: "#{baseUrl}/collectionAccess/#{collectionName}/find"
-      json:
-        query: { unique: 0 }
-      (err, res, body) ->
-        return done err if err
-        body.length.should.eql 1
-        objectId = body[0]._id
+        body.unique.should.eql entities[0].unique
         req.post
           url: "#{baseUrl}/collectionAccess/#{collectionName}/count"
-          body: BSON.serialize({ query: { _id: objectId } })
-          headers:
-            'content-type': 'application/bson'
+          json:
+            query:
+              propOne: 1
           (err, res, body) ->
             return done err if err
-            body = JSON.parse body
-            res.statusCode.should.eql 200
-            body.should.have.property 'count'
             body.count.should.eql 1
             done()
 
-  it 'correctly performs a count by an array of Mongo ObjectIDs', (done) ->
+  it 'correctly performs a findAndRemove with a compound query', (done) ->
     req.post
-      url: "#{baseUrl}/collectionAccess/#{collectionName}/find"
+      url: "#{baseUrl}/collectionAccess/#{collectionName}/findAndRemove"
       json:
-        query: { $or: [{ unique: 0 }, { unique: 1 }] }
+        query:
+          $and: [{ propOne: 2 }, { propTwo: 3 }]
       (err, res, body) ->
         return done err if err
-        body.length.should.eql 2
-        object1Id = body[0]._id.toString()
-        object2Id = body[1]._id.toString()
+        res.statusCode.should.eql 200
+        body.unique.should.eql entities[4].unique
         req.post
           url: "#{baseUrl}/collectionAccess/#{collectionName}/count"
-          body: BSON.serialize({ query: { _id: { $in: [ object1Id, object2Id ] } } })
-          headers:
-            'content-type': 'application/bson'
+          json:
+            query:
+              $and: [{ propOne: 2 }, { propTwo: 3 }]
           (err, res, body) ->
             return done err if err
-            body = JSON.parse body
-            res.statusCode.should.eql 200
-            body.should.have.property 'count'
-            body.count.should.eql 2
+            body.count.should.eql 0
             done()
 
   describe 'edge cases', () ->
-    it "returns 0 when the collection doesn't exist", (done) ->
+    it "returns an empty object when the collection doesn't exist", (done) ->
       req.post
-        url: "#{baseUrl}/collectionAccess/fakeCollectionName/count"
+        url: "#{baseUrl}/collectionAccess/fakeCollectionName/findAndRemove"
         json:
           query: {}
         (err, res, body) ->
           return done err if err
           res.statusCode.should.eql 200
-          body.should.have.property 'count'
-          body.count.should.eql 0
+          body.should.eql {}
           done()
+
+  describe 'options', () ->
+    it 'if sort is specified, sorts to detemine which object to remove', (done) ->
+      req.post
+        url: "#{baseUrl}/collectionAccess/#{collectionName}/findAndRemove"
+        json:
+          query: {}
+          options:
+            sort: ['propTwo', 'propOne']
+        (err, res, body) ->
+          return done err if err
+          res.statusCode.should.eql 200
+          body.unique.should.eql entities[3].unique
+          req.post
+            url: "#{baseUrl}/collectionAccess/#{collectionName}/count"
+            json:
+              query:
+                unique: entities[3].unique
+            (err, res, body) ->
+              body.count.should.eql 0
+              done()
 
   describe 'restrictions', () ->
     it 'fails when the query includes the $where operator', (done) ->
       req.post
-        url: "#{baseUrl}/collectionAccess/fakeCollectionName/count"
+        url: "#{baseUrl}/collectionAccess/#{collectionName}/findAndRemove"
         json:
           query:
             $where:
               propOne: 2
         (err, res, body) ->
+          return done err if err
           res.statusCode.should.eql 400
           body.code.should.eql 'DisallowedQuerySyntax'
           done()
 
     it 'fails when the query includes the $query operator', (done) ->
       req.post
-        url: "#{baseUrl}/collectionAccess/fakeCollectionName/count"
+        url: "#{baseUrl}/collectionAccess/#{collectionName}/findAndRemove"
         json:
           query:
             $query:
               propOne: 2
         (err, res, body) ->
+          return done err if err
           res.statusCode.should.eql 400
           body.code.should.eql 'DisallowedQuerySyntax'
           done()

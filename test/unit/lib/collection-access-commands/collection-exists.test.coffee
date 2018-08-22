@@ -1,5 +1,5 @@
 #
-# Copyright 2016 Kinvey, Inc.
+# Copyright 2018 Kinvey, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,53 +17,45 @@
 config = require 'config'
 should = require 'should'
 request = require 'request'
-BSON = require('bson').BSONPure.BSON
-testUtils = require '../../testUtils'
+testUtils = require '../../../testUtils'
 
 req = request.defaults {}
 
 baseUrl = "http://#{config.server.address}:#{config.server.port}"
 collectionName = "testCollection"
 
-describe 'collectionAccess / save', () ->
+describe 'collectionAccess / collectionExists', () ->
   before (done) ->
     testUtils.startServer baseUrl, (forkedProcess) ->
-      done()
+      req.post
+        url: "#{baseUrl}/collectionAccess/#{collectionName}/insert"
+        json:
+          entity: {}
+        (err, res, body) ->
+          done()
 
   after (done) ->
     testUtils.stopServer ->
       done()
 
-  it 'correctly performs a save with an empty entity', (done) ->
+  it 'correctly verifies the existance of a collection', (done) ->
     req.post
-      url: "#{baseUrl}/collectionAccess/#{collectionName}/save"
+      url: "#{baseUrl}/collectionAccess/#{collectionName}/collectionExists"
       json:
         entity: {}
       (err, res, body) ->
+        return done err if err
         res.statusCode.should.eql 200
-        req.post
-          url: "#{baseUrl}/collectionAccess/#{collectionName}/count"
-          json:
-            query: {}
-          (err, res, body) ->
-            return done err if err
-            body.count.should.eql 1
-            done()
+        body.exists.should.be.true
+        done()
 
-  it 'correctly performs a save with a non-empty entity', (done) ->
+  it "returns exists: false when the collection doesn't exist", (done) ->
     req.post
-      url: "#{baseUrl}/collectionAccess/#{collectionName}/save"
+      url: "#{baseUrl}/collectionAccess/fakeCollectionName/collectionExists"
       json:
-        entity:
-          testValue: true
+        entity: {}
       (err, res, body) ->
+        return done err if err
         res.statusCode.should.eql 200
-        req.post
-          url: "#{baseUrl}/collectionAccess/#{collectionName}/count"
-          json:
-            query:
-              testValue: true
-          (err, res, body) ->
-            return done err if err
-            body.count.should.eql 1
-            done()
+        body.exists.should.be.false
+        done()
